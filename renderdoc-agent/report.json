@@ -1,0 +1,511 @@
+{
+  "generated_at": "2026-05-18T15:07:00.730874",
+  "platform": "PC 高端",
+  "status": "FAIL",
+  "metrics": [
+    {
+      "name": "DrawCall 数量",
+      "actual": 2347,
+      "threshold": 5000,
+      "ratio": 0.47,
+      "over_budget": false
+    },
+    {
+      "name": "三角形数量",
+      "actual": 1856000,
+      "threshold": 3000000,
+      "ratio": 0.62,
+      "over_budget": false
+    },
+    {
+      "name": "纹理显存 (MB)",
+      "actual": 1843.2,
+      "threshold": 4096,
+      "ratio": 0.45,
+      "over_budget": false
+    },
+    {
+      "name": "Shader 变体数",
+      "actual": 156,
+      "threshold": 300,
+      "ratio": 0.52,
+      "over_budget": false
+    },
+    {
+      "name": "Fragment 指令数",
+      "actual": 520,
+      "threshold": 512,
+      "ratio": 1.02,
+      "over_budget": true
+    },
+    {
+      "name": "Overdraw 比例",
+      "actual": 2.3,
+      "threshold": 3.0,
+      "ratio": 0.77,
+      "over_budget": false
+    },
+    {
+      "name": "帧时间 (ms)",
+      "actual": 14.2,
+      "threshold": 16.67,
+      "ratio": 0.85,
+      "over_budget": false
+    },
+    {
+      "name": "带宽 (GB/帧)",
+      "actual": 8.5,
+      "threshold": 12.0,
+      "ratio": 0.71,
+      "over_budget": false
+    }
+  ],
+  "over_budget": [
+    {
+      "name": "Fragment 指令数",
+      "actual": 520,
+      "threshold": 512,
+      "ratio": 1.02,
+      "over_budget": true
+    }
+  ],
+  "analysis": {
+    "draw_calls": 2347,
+    "triangles": 1856000,
+    "vertices": 2134000,
+    "unique_shaders": 42,
+    "unique_textures": 187,
+    "texture_memory_mb": 1843.2
+  },
+  "is_mock_data": true,
+  "texture_analysis": {
+    "total_textures": 187,
+    "total_memory_mb": 1843.2,
+    "format_distribution": {
+      "BC1/DXT1": 45,
+      "BC3/DXT5": 32,
+      "BC7": 28,
+      "ASTC_4x4": 25,
+      "R8G8B8A8_UNORM": 20,
+      "R16G16B16A16_FLOAT": 15,
+      "Other": 22
+    },
+    "size_distribution": {
+      "4096x4096": 12,
+      "2048x2048": 45,
+      "1024x1024": 68,
+      "512x512": 42,
+      "256x256": 20
+    },
+    "mipmap_status": {
+      "has_mipmap": 156,
+      "no_mipmap": 31,
+      "partial_mipmap": 0
+    },
+    "uncompressed_textures": [
+      {
+        "name": "UI_Atlas_01",
+        "format": "R8G8B8A8_UNORM",
+        "size": "4096x4096",
+        "memory_mb": 64.0
+      },
+      {
+        "name": "Character_Diffuse",
+        "format": "R8G8B8A8_UNORM",
+        "size": "2048x2048",
+        "memory_mb": 16.0
+      },
+      {
+        "name": "Particle_Sprite",
+        "format": "R8G8B8A8_UNORM",
+        "size": "1024x1024",
+        "memory_mb": 4.0
+      },
+      {
+        "name": "Font_Atlas",
+        "format": "R8_UNORM",
+        "size": "2048x2048",
+        "memory_mb": 4.0
+      }
+    ],
+    "largest_textures": [
+      {
+        "name": "Terrain_Height",
+        "format": "R16_FLOAT",
+        "size": "8192x8192",
+        "memory_mb": 128.0
+      },
+      {
+        "name": "Terrain_Normal",
+        "format": "BC5",
+        "size": "8192x8192",
+        "memory_mb": 64.0
+      },
+      {
+        "name": "Sky_Cubemap",
+        "format": "BC6H",
+        "size": "2048x2048",
+        "memory_mb": 48.0
+      },
+      {
+        "name": "UI_Atlas_01",
+        "format": "R8G8B8A8_UNORM",
+        "size": "4096x4096",
+        "memory_mb": 64.0
+      },
+      {
+        "name": "Character_Diffuse",
+        "format": "BC7",
+        "size": "4096x4096",
+        "memory_mb": 16.0
+      },
+      {
+        "name": "Character_Normal",
+        "format": "BC5",
+        "size": "4096x4096",
+        "memory_mb": 16.0
+      },
+      {
+        "name": "Environment_Diffuse",
+        "format": "BC7",
+        "size": "2048x2048",
+        "memory_mb": 4.0
+      },
+      {
+        "name": "Environment_Normal",
+        "format": "BC5",
+        "size": "2048x2048",
+        "memory_mb": 4.0
+      },
+      {
+        "name": "Shadow_Atlas",
+        "format": "D24_UNORM_S8_UINT",
+        "size": "4096x4096",
+        "memory_mb": 64.0
+      },
+      {
+        "name": "GBuffer_Albedo",
+        "format": "R8G8B8A8_UNORM_SRGB",
+        "size": "1920x1080",
+        "memory_mb": 7.9
+      }
+    ],
+    "source_file": "test.rdc",
+    "mock": true
+  },
+  "shader_analysis": {
+    "total_shaders": 42,
+    "total_variants": 156,
+    "variant_explosion": [
+      {
+        "name": "PBR_Opaque",
+        "variants": 48,
+        "keywords": [
+          "NORMAL_MAP",
+          "PARALLAX",
+          "EMISSION",
+          "DETAIL_MAP"
+        ]
+      },
+      {
+        "name": "Particle_Additive",
+        "variants": 24,
+        "keywords": [
+          "SOFT_PARTICLE",
+          "DISTORTION",
+          "FLIPBOOK"
+        ]
+      },
+      {
+        "name": "Terrain_Splat",
+        "variants": 16,
+        "keywords": [
+          "LAYERS_4",
+          "LAYERS_8",
+          "SNOW",
+          "WETNESS"
+        ]
+      }
+    ],
+    "complexity": [
+      {
+        "name": "PBR_Opaque",
+        "vertex_instructions": 120,
+        "fragment_instructions": 350,
+        "texture_samples": 6
+      },
+      {
+        "name": "PBR_Transparent",
+        "vertex_instructions": 110,
+        "fragment_instructions": 320,
+        "texture_samples": 5
+      },
+      {
+        "name": "PostProcess_Bloom",
+        "vertex_instructions": 30,
+        "fragment_instructions": 85,
+        "texture_samples": 4
+      },
+      {
+        "name": "PostProcess_Tonemap",
+        "vertex_instructions": 20,
+        "fragment_instructions": 45,
+        "texture_samples": 2
+      },
+      {
+        "name": "Shadow_Caster",
+        "vertex_instructions": 60,
+        "fragment_instructions": 10,
+        "texture_samples": 0
+      },
+      {
+        "name": "Terrain_Splat",
+        "vertex_instructions": 90,
+        "fragment_instructions": 520,
+        "texture_samples": 12
+      },
+      {
+        "name": "UI_Default",
+        "vertex_instructions": 40,
+        "fragment_instructions": 25,
+        "texture_samples": 1
+      },
+      {
+        "name": "Skybox_Cubemap",
+        "vertex_instructions": 35,
+        "fragment_instructions": 60,
+        "texture_samples": 1
+      },
+      {
+        "name": "Particle_Additive",
+        "vertex_instructions": 50,
+        "fragment_instructions": 70,
+        "texture_samples": 2
+      },
+      {
+        "name": "Deferred_Lighting",
+        "vertex_instructions": 25,
+        "fragment_instructions": 180,
+        "texture_samples": 5
+      }
+    ],
+    "uniform_usage": {
+      "total_uniforms": 245,
+      "unused_uniforms": 18,
+      "per_shader_uniforms": [
+        {
+          "name": "PBR_Opaque",
+          "uniforms": 32,
+          "used": 28
+        },
+        {
+          "name": "PBR_Transparent",
+          "uniforms": 28,
+          "used": 25
+        },
+        {
+          "name": "PostProcess_Bloom",
+          "uniforms": 12,
+          "used": 10
+        },
+        {
+          "name": "Terrain_Splat",
+          "uniforms": 24,
+          "used": 20
+        },
+        {
+          "name": "Deferred_Lighting",
+          "uniforms": 18,
+          "used": 16
+        }
+      ]
+    },
+    "overly_complex_shaders": [
+      {
+        "name": "Terrain_Splat",
+        "fragment_instructions": 520,
+        "reason": "混合层数过多，建议减少 Splat 层级或使用 Virtual Texture"
+      }
+    ],
+    "source_file": "test.rdc",
+    "mock": true
+  },
+  "gpu_time_analysis": {
+    "total_gpu_time_ms": 16.67,
+    "frame_time_ms": 14.2,
+    "fps_estimate": 70.4,
+    "pass_breakdown": [
+      {
+        "name": "ShadowMap",
+        "time_ms": 2.1,
+        "percentage": 14.8,
+        "draw_calls": 456
+      },
+      {
+        "name": "GBuffer",
+        "time_ms": 4.5,
+        "percentage": 31.7,
+        "draw_calls": 1234
+      },
+      {
+        "name": "Lighting",
+        "time_ms": 1.8,
+        "percentage": 12.7,
+        "draw_calls": 23
+      },
+      {
+        "name": "Transparent",
+        "time_ms": 2.3,
+        "percentage": 16.2,
+        "draw_calls": 567
+      },
+      {
+        "name": "PostProcess",
+        "time_ms": 1.9,
+        "percentage": 13.4,
+        "draw_calls": 12
+      },
+      {
+        "name": "UI",
+        "time_ms": 1.6,
+        "percentage": 11.3,
+        "draw_calls": 67
+      }
+    ],
+    "top_expensive_drawcalls": [
+      {
+        "draw_call_id": 1234,
+        "name": "DrawIndexed",
+        "time_ms": 0.8,
+        "shader": "PBR_Opaque",
+        "triangles": 50000
+      },
+      {
+        "draw_call_id": 1567,
+        "name": "DrawIndexed",
+        "time_ms": 0.6,
+        "shader": "Terrain_Splat",
+        "triangles": 42000
+      },
+      {
+        "draw_call_id": 890,
+        "name": "DrawIndexed",
+        "time_ms": 0.5,
+        "shader": "PBR_Opaque",
+        "triangles": 38000
+      },
+      {
+        "draw_call_id": 2100,
+        "name": "DrawIndexed",
+        "time_ms": 0.4,
+        "shader": "PBR_Transparent",
+        "triangles": 25000
+      },
+      {
+        "draw_call_id": 456,
+        "name": "DrawIndexed",
+        "time_ms": 0.35,
+        "shader": "PBR_Opaque",
+        "triangles": 30000
+      },
+      {
+        "draw_call_id": 789,
+        "name": "DrawIndexed",
+        "time_ms": 0.3,
+        "shader": "Shadow_Caster",
+        "triangles": 28000
+      },
+      {
+        "draw_call_id": 1100,
+        "name": "DrawIndexed",
+        "time_ms": 0.28,
+        "shader": "PBR_Opaque",
+        "triangles": 22000
+      },
+      {
+        "draw_call_id": 1900,
+        "name": "DrawIndexed",
+        "time_ms": 0.25,
+        "shader": "Particle_Additive",
+        "triangles": 15000
+      },
+      {
+        "draw_call_id": 500,
+        "name": "DrawIndexed",
+        "time_ms": 0.22,
+        "shader": "PBR_Opaque",
+        "triangles": 20000
+      },
+      {
+        "draw_call_id": 2200,
+        "name": "DrawIndexed",
+        "time_ms": 0.2,
+        "shader": "UI_Default",
+        "triangles": 5000
+      }
+    ],
+    "bottleneck": "GBuffer",
+    "budget_status": {
+      "60fps": {
+        "budget_ms": 16.67,
+        "status": "PASS",
+        "margin_ms": 2.47
+      },
+      "30fps": {
+        "budget_ms": 33.33,
+        "status": "PASS",
+        "margin_ms": 19.13
+      }
+    },
+    "source_file": "test.rdc",
+    "mock": true
+  },
+  "overdraw_analysis": {
+    "overdraw_ratio": 2.3,
+    "overdraw_distribution": {
+      "1x": "35%",
+      "2x": "40%",
+      "3x": "15%",
+      "4x+": "10%"
+    },
+    "pixel_fill_rate": {
+      "total_pixels_written": 4423680,
+      "screen_pixels": 1920000,
+      "overdraw_pixels": 2503680
+    },
+    "bandwidth": {
+      "estimated_bandwidth_gb": 8.5,
+      "render_target_writes_gb": 3.2,
+      "texture_reads_gb": 4.1,
+      "depth_writes_gb": 1.2
+    },
+    "high_overdraw_regions": [
+      {
+        "region": "Transparent Objects",
+        "overdraw": 3.5,
+        "cause": "多层半透明叠加，排序开销大"
+      },
+      {
+        "region": "Particle Systems",
+        "overdraw": 4.2,
+        "cause": "粒子密度高，无 Early-Z 优化"
+      },
+      {
+        "region": "UI Elements",
+        "overdraw": 2.8,
+        "cause": "UI 层叠较多"
+      }
+    ],
+    "optimization_potential": {
+      "bandwidth_saving_mb": 1200,
+      "suggestions": [
+        "对透明物体使用 OIT (Order Independent Transparency) 减少 Overdraw",
+        "降低粒子系统的填充率，使用 GPU Particle 或减少粒子数量",
+        "使用 Early-Z 优化减少不可见像素的着色开销",
+        "对远处物体使用低分辨率渲染 (Variable Rate Shading)"
+      ]
+    },
+    "source_file": "test.rdc",
+    "mock": true
+  }
+}

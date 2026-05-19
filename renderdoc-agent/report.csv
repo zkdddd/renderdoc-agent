@@ -1,0 +1,63 @@
+RenderDoc 性能分析报告
+生成时间,2026-05-18 15:09:09
+
+目标平台,PC 高端
+整体状态,FAIL
+
+指标名称,实际值,阈值,比率,是否超标
+DrawCall 数量,2347,5000,0.47,否
+三角形数量,1856000,3000000,0.62,否
+纹理显存 (MB),1843.2,4096,0.45,否
+Shader 变体数,156,300,0.52,否
+Fragment 指令数,520,512,1.02,是
+Overdraw 比例,2.3,3.0,0.77,否
+帧时间 (ms),14.2,16.67,0.85,否
+带宽 (GB/帧),8.5,12.0,0.71,否
+
+基础信息
+DrawCall 数量,2347
+三角形数量,1856000
+顶点数量,2134000
+唯一 Shader 数,42
+唯一纹理数,187
+纹理显存 (MB),1843.2
+
+纹理分析
+纹理总数,187
+纹理总内存 (MB),1843.2
+有 Mipmap,156
+无 Mipmap,31
+未压缩纹理数,4
+  未压缩纹理,UI_Atlas_01,R8G8B8A8_UNORM,4096x4096
+  未压缩纹理,Character_Diffuse,R8G8B8A8_UNORM,2048x2048
+  未压缩纹理,Particle_Sprite,R8G8B8A8_UNORM,1024x1024
+  未压缩纹理,Font_Atlas,R8_UNORM,2048x2048
+
+Shader 分析
+Shader 总数,42
+变体总数,156
+  变体爆炸,PBR_Opaque,变体数,48
+  变体爆炸,Particle_Additive,变体数,24
+  变体爆炸,Terrain_Splat,变体数,16
+Uniform 总数,245
+未使用 Uniform,18
+
+GPU 耗时分析
+帧时间 (ms),14.2
+估算 FPS,70.4
+瓶颈 Pass,GBuffer
+  Pass,ShadowMap,耗时 (ms),2.1,占比,14.8%
+  Pass,GBuffer,耗时 (ms),4.5,占比,31.7%
+  Pass,Lighting,耗时 (ms),1.8,占比,12.7%
+  Pass,Transparent,耗时 (ms),2.3,占比,16.2%
+  Pass,PostProcess,耗时 (ms),1.9,占比,13.4%
+  Pass,UI,耗时 (ms),1.6,占比,11.3%
+
+Overdraw 分析
+Overdraw 比例,2.3
+估算带宽 (GB/帧),8.5
+  高 Overdraw 区域,Transparent Objects,Overdraw,3.5
+  高 Overdraw 区域,Particle Systems,Overdraw,4.2
+  高 Overdraw 区域,UI Elements,Overdraw,2.8
+
+注意,当前使用模拟数据

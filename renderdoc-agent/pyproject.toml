@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "renderdoc-agent"
+version = "0.1.0"
+description = "Game rendering performance analysis agent powered by RenderDoc and LLM"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+renderdoc-agent = "renderdoc_agent.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
