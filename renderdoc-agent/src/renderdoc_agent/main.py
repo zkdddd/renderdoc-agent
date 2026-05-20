@@ -1,14 +1,12 @@
 """CLI entry point for RenderDoc Agent."""
 
+import json
+import subprocess
 import sys
+from pathlib import Path
 
 from .config import Config
 from .agent import ReactAgent
-from .tools.analyze_rdc import analyze_rdc
-from .tools.texture_analysis import analyze_textures
-from .tools.shader_analysis import analyze_shaders
-from .tools.gpu_time_analysis import analyze_gpu_time
-from .tools.overdraw_analysis import analyze_overdraw
 from .tools.baselines import compare_with_baseline
 from .report import generate_csv_report, generate_json_report
 
@@ -42,28 +40,33 @@ def print_help():
 
 
 def quick_report(rdc_file: str, platform: str, config: Config, fmt: str = "text", output: str = None):
-    """Generate a quick report without LLM.
-
-    Args:
-        rdc_file: Path to .rdc file.
-        platform: Target platform.
-        config: Configuration.
-        fmt: Output format (text/csv/json).
-        output: Output file path (None for stdout).
-    """
-    from .tools.rdc_replay import extract_via_qrenderdoc
-
+    """Generate a quick report without LLM."""
     try:
-        extracted = extract_via_qrenderdoc(rdc_file, config.qrenderdoc_path)
-    except (FileNotFoundError, RuntimeError) as e:
-        if config.use_mock_data:
-            print(f"[警告] 无法通过 qrenderdoc 提取数据: {e}，使用模拟数据")
-            extracted = None
-        else:
+        helper = Path(__file__).resolve().parent / "renderdoc_helper.py"
+        helper_python = getattr(config, "helper_python", "") or sys.executable
+        cmd = [helper_python, str(helper), rdc_file]
+        if config.renderdoc_module_path:
+            cmd.extend(["--renderdoc-path", config.renderdoc_module_path])
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if proc.returncode != 0:
+            raise RuntimeError((proc.stderr or proc.stdout or "renderdoc helper failed").strip())
+        extracted = json.loads(proc.stdout)
+    except Exception as e:
+        if not config.use_mock_data:
             raise
+        print(f"[警告] 无法通过 renderdoc API 提取数据: {e}，使用模拟数据")
+        from .tools.analyze_rdc import analyze_rdc
+        from .tools.texture_analysis import analyze_textures
+        from .tools.shader_analysis import analyze_shaders
+        from .tools.gpu_time_analysis import analyze_gpu_time
+        from .tools.overdraw_analysis import analyze_overdraw
 
-    if extracted is not None:
-        # Build analysis data from extracted results
+        analysis_data = analyze_rdc(rdc_file=rdc_file, use_mock=True)
+        texture_data = analyze_textures(rdc_file=rdc_file, use_mock=True)
+        shader_data = analyze_shaders(rdc_file=rdc_file, use_mock=True)
+        gpu_time_data = analyze_gpu_time(rdc_file=rdc_file, use_mock=True)
+        overdraw_data = analyze_overdraw(rdc_file=rdc_file, use_mock=True)
+    else:
         dc = extracted.get("drawcall_data", {})
         analysis_data = {
             "draw_calls": dc.get("draw_calls", 0),
@@ -84,13 +87,6 @@ def quick_report(rdc_file: str, platform: str, config: Config, fmt: str = "text"
         gpu_time_data["source_file"] = extracted.get("source_file", "")
         overdraw_data = extracted.get("overdraw_data", {})
         overdraw_data["source_file"] = extracted.get("source_file", "")
-    else:
-        # Fallback to mock data
-        analysis_data = analyze_rdc(rdc_file=rdc_file, use_mock=True)
-        texture_data = analyze_textures(rdc_file=rdc_file, use_mock=True)
-        shader_data = analyze_shaders(rdc_file=rdc_file, use_mock=True)
-        gpu_time_data = analyze_gpu_time(rdc_file=rdc_file, use_mock=True)
-        overdraw_data = analyze_overdraw(rdc_file=rdc_file, use_mock=True)
 
     # Build aggregated data for baseline comparison
     baseline_input = {
@@ -222,12 +218,8 @@ def main():
     parser.add_argument("--quick", "-q", action="store_true",
                         help="快速报告模式，不使用 LLM 直接输出数据")
     parser.add_argument("--renderdoc-path", help="renderdoc Python 模块路径 (包含 renderdoc.pyd/so)")
-    parser.add_argument("--qrenderdoc-path", help="qrenderdoc.exe 路径 (默认: D:\\kd\\Tool\\renderdoc1.44\\qrenderdoc.exe)")
+    parser.add_argument("--helper-python", help="RenderDoc helper 使用的 Python 解释器路径")
     args = parser.parse_args()
-
-    use_mock = args.mock or args.no_mock is False and False
-    # --mock explicitly enables mock; otherwise default is False
-    # --no_mock is kept for backwards compat but is a no-op now
 
     config = Config(
         ollama_base_url=args.ollama_url,
@@ -235,7 +227,7 @@ def main():
         default_platform=args.platform,
         use_mock_data=args.mock,
         renderdoc_module_path=args.renderdoc_path or "",
-        qrenderdoc_path=args.qrenderdoc_path or "",
+        helper_python=args.helper_python or "",
     )
 
     # Quick report mode (no LLM)

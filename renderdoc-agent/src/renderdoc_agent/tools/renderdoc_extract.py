@@ -1,14 +1,8 @@
 """
-RenderDoc data extraction script.
+RenderDoc data extraction helpers built on the renderdoc Python API.
 
-This script is designed to run INSIDE RenderDoc's embedded Python environment
-via: qrenderdoc.exe --python renderdoc_extract.py capture.rdc output.json
-
-It imports the built-in `renderdoc` module (only available inside qrenderdoc),
-opens the .rdc file, extracts all analysis metrics, writes JSON to the output
-file, and calls os._exit(0) to terminate before the Qt UI opens.
-
-Compatible with Python 3.6 (RenderDoc's embedded Python version).
+These helpers are shared by the API-based extractor and do not depend on
+any qrenderdoc subprocess flow.
 """
 
 import sys
@@ -30,7 +24,7 @@ def extract_drawcall_data(controller):
         if action.flags & rd.ActionFlags.Drawcall:
             draw_calls += 1
             total_triangles += action.numIndices // 3
-            total_vertices += action.numVertices
+            total_vertices += getattr(action, "numVertices", 0)
             controller.SetFrameEvent(action.eventId, True)
             state = controller.GetPipelineState()
             for stage in [rd.ShaderStage.Vertex, rd.ShaderStage.Fragment]:
@@ -346,7 +340,7 @@ def extract_overdraw_data(controller, sample_count=200):
 
 def main():
     if len(sys.argv) < 3:
-        print(json.dumps({"error": "Usage: qrenderdoc.exe --python renderdoc_extract.py <capture.rdc> <output.json>"}))
+        print(json.dumps({"error": "Usage: renderdoc_extract.py <capture.rdc> <output.json>"}))
         sys.exit(1)
 
     rdc_file = sys.argv[1]

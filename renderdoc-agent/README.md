@@ -24,8 +24,8 @@ pip install -e .
    ollama pull qwen2.5:7b
    ```
 
-2. **rdc-cli**（可选）：用于解析真实 `.rdc` 文件
-   - 无 rdc-cli 时自动使用模拟数据模式
+2. **RenderDoc Python API**：需要本机可 `import renderdoc`
+   - 真实 `.rdc` 分析依赖该模块
 
 ## 使用
 

@@ -61,28 +61,20 @@ class ReactAgent:
         self.llm = OllamaClient(config)
         self.memory = Memory()
         self.registry = ToolRegistry()
-        self._extracted_data = None  # Cache for subprocess-extracted data
+        self._extracted_data = None  # Cache for extracted data
         self._rd_available = False
         self._init_renderdoc()
         self._register_tools()
 
     def _init_renderdoc(self):
-        """Check if renderdoc is available (direct import or qrenderdoc subprocess)."""
-        from .tools.rdc_replay import init_renderdoc, find_qrenderdoc
-        # Try direct import first
+        """Check if renderdoc API is available."""
+        from .tools.rdc_replay import init_renderdoc
         self._rd_available = init_renderdoc(self.config.renderdoc_module_path)
-        if not self._rd_available:
-            # Check if qrenderdoc.exe is available for subprocess mode
-            try:
-                find_qrenderdoc(self.config.qrenderdoc_path)
-                self._rd_available = True
-            except FileNotFoundError:
-                self._rd_available = False
 
     def _ensure_data(self, rdc_file: str) -> dict:
         """Get extracted rendering data for an .rdc file.
 
-        Uses subprocess via qrenderdoc.exe to extract all data at once,
+        Uses the renderdoc Python API to extract all data at once,
         then caches the result for subsequent tool calls.
 
         Returns:
@@ -94,10 +86,10 @@ class ReactAgent:
         if not self._rd_available:
             return None
 
-        from .tools.rdc_replay import extract_via_qrenderdoc
+        from .tools.rdc_replay import extract_via_renderdoc_api
         try:
-            self._extracted_data = extract_via_qrenderdoc(
-                rdc_file, self.config.qrenderdoc_path
+            self._extracted_data = extract_via_renderdoc_api(
+                rdc_file, self.config.renderdoc_module_path
             )
             return self._extracted_data
         except Exception as e:
