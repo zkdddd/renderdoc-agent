@@ -21,11 +21,11 @@ pip install -e .
 1. **Ollama**：本地运行 LLM 服务
    ```bash
    # 安装 Ollama 后拉取模型
-   ollama pull qwen2.5:7b
+   ollama pull qwen2.5:3b
    ```
 
-2. **RenderDoc Python API**：需要本机可 `import renderdoc`
-   - 真实 `.rdc` 分析依赖该模块
+2. **rdc-cli**（可选）：用于解析真实 `.rdc` 文件
+   - 无 rdc-cli 时自动使用模拟数据模式
 
 ## 使用
 
@@ -40,7 +40,7 @@ python -m renderdoc_agent path/to/frame.rdc
 python -m renderdoc_agent frame.rdc --platform mobile_mid
 
 # 指定模型
-python -m renderdoc_agent --model qwen2.5:14b
+python -m renderdoc_agent --model qwen2.5:3b
 ```
 
 ### 交互命令

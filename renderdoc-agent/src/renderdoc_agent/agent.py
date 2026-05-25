@@ -61,7 +61,7 @@ class ReactAgent:
         self.llm = OllamaClient(config)
         self.memory = Memory()
         self.registry = ToolRegistry()
-        self._extracted_data = None  # Cache for extracted data
+        self._extracted_data = None  # Cache for subprocess-extracted data
         self._rd_available = False
         self._init_renderdoc()
         self._register_tools()
@@ -74,7 +74,7 @@ class ReactAgent:
     def _ensure_data(self, rdc_file: str) -> dict:
         """Get extracted rendering data for an .rdc file.
 
-        Uses the renderdoc Python API to extract all data at once,
+        Uses the helper process to extract all data at once,
         then caches the result for subsequent tool calls.
 
         Returns:
@@ -88,9 +88,7 @@ class ReactAgent:
 
         from .tools.rdc_replay import extract_via_renderdoc_api
         try:
-            self._extracted_data = extract_via_renderdoc_api(
-                rdc_file, self.config.renderdoc_module_path
-            )
+            self._extracted_data = extract_via_renderdoc_api(rdc_file, self.config.renderdoc_module_path)
             return self._extracted_data
         except Exception as e:
             if not self.config.use_mock_data:

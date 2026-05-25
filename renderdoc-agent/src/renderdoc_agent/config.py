@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 class Config:
     # Ollama settings
     ollama_base_url: str = "http://localhost:11434"
-    model: str = "qwen2.5:7b"
+    model: str = "qwen2.5:3b"
 
     # Agent settings
     max_tool_rounds: int = 5
@@ -19,9 +19,8 @@ class Config:
     # renderdoc Python module path (directory containing renderdoc.pyd / renderdoc.so)
     renderdoc_module_path: str = ""
 
-    # Helper Python executable path for RenderDoc extraction
+    # Python executable used by the helper process
     helper_python: str = ""
 
     # Simulated data mode (when renderdoc module is unavailable)
     use_mock_data: bool = False
-

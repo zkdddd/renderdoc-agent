@@ -7,6 +7,11 @@ from pathlib import Path
 
 from .config import Config
 from .agent import ReactAgent
+from .tools.analyze_rdc import analyze_rdc
+from .tools.texture_analysis import analyze_textures
+from .tools.shader_analysis import analyze_shaders
+from .tools.gpu_time_analysis import analyze_gpu_time
+from .tools.overdraw_analysis import analyze_overdraw
 from .tools.baselines import compare_with_baseline
 from .report import generate_csv_report, generate_json_report
 
@@ -41,32 +46,31 @@ def print_help():
 
 def quick_report(rdc_file: str, platform: str, config: Config, fmt: str = "text", output: str = None):
     """Generate a quick report without LLM."""
-    try:
-        helper = Path(__file__).resolve().parent / "renderdoc_helper.py"
-        helper_python = getattr(config, "helper_python", "") or sys.executable
-        cmd = [helper_python, str(helper), rdc_file]
-        if config.renderdoc_module_path:
-            cmd.extend(["--renderdoc-path", config.renderdoc_module_path])
-        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if proc.returncode != 0:
-            raise RuntimeError((proc.stderr or proc.stdout or "renderdoc helper failed").strip())
-        extracted = json.loads(proc.stdout)
-    except Exception as e:
-        if not config.use_mock_data:
-            raise
-        print(f"[警告] 无法通过 renderdoc API 提取数据: {e}，使用模拟数据")
-        from .tools.analyze_rdc import analyze_rdc
-        from .tools.texture_analysis import analyze_textures
-        from .tools.shader_analysis import analyze_shaders
-        from .tools.gpu_time_analysis import analyze_gpu_time
-        from .tools.overdraw_analysis import analyze_overdraw
+    helper = Path(__file__).resolve().parent / "renderdoc_helper.py"
+    helper_python = config.helper_python or sys.executable
+    cmd = [helper_python, str(helper), rdc_file, "--renderdoc-path", config.renderdoc_module_path]
 
-        analysis_data = analyze_rdc(rdc_file=rdc_file, use_mock=True)
-        texture_data = analyze_textures(rdc_file=rdc_file, use_mock=True)
-        shader_data = analyze_shaders(rdc_file=rdc_file, use_mock=True)
-        gpu_time_data = analyze_gpu_time(rdc_file=rdc_file, use_mock=True)
-        overdraw_data = analyze_overdraw(rdc_file=rdc_file, use_mock=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if proc.returncode != 0:
+        if config.use_mock_data:
+            print(f"[警告] renderdoc helper 失败: {proc.stderr or proc.stdout}")
+            analysis_data = analyze_rdc(rdc_file=rdc_file, use_mock=True)
+            texture_data = analyze_textures(rdc_file=rdc_file, use_mock=True)
+            shader_data = analyze_shaders(rdc_file=rdc_file, use_mock=True)
+            gpu_time_data = analyze_gpu_time(rdc_file=rdc_file, use_mock=True)
+            overdraw_data = analyze_overdraw(rdc_file=rdc_file, use_mock=True)
+        else:
+            raise RuntimeError(proc.stderr or proc.stdout or "renderdoc helper failed")
     else:
+        extracted = None
+        for line in reversed(proc.stdout.splitlines()):
+            line = line.strip()
+            if line.startswith("{") and line.endswith("}"):
+                extracted = json.loads(line)
+                break
+        if extracted is None:
+            raise RuntimeError(f"renderdoc helper did not return JSON: {proc.stdout}")
+
         dc = extracted.get("drawcall_data", {})
         analysis_data = {
             "draw_calls": dc.get("draw_calls", 0),
@@ -208,7 +212,7 @@ def main():
     parser = argparse.ArgumentParser(description="RenderDoc Agent - 游戏渲染性能分析")
     parser.add_argument("rdc_file", nargs="?", help=".rdc 文件路径（可选，进入交互模式后也可输入）")
     parser.add_argument("--platform", "-p", default="pc_high", help="目标平台 (默认: pc_high)")
-    parser.add_argument("--model", "-m", default="qwen2.5:7b", help="Ollama 模型名 (默认: qwen2.5:7b)")
+    parser.add_argument("--model", "-m", default="qwen2.5:3b", help="Ollama 模型名 (默认: qwen2.5:3b)")
     parser.add_argument("--ollama-url", default="http://localhost:11434", help="Ollama 服务地址")
     parser.add_argument("--mock", action="store_true", default=False, help="使用模拟数据 (默认关闭)")
     parser.add_argument("--no-mock", action="store_true", help="禁用模拟数据（已默认禁用，保留向后兼容）")
@@ -218,8 +222,12 @@ def main():
     parser.add_argument("--quick", "-q", action="store_true",
                         help="快速报告模式，不使用 LLM 直接输出数据")
     parser.add_argument("--renderdoc-path", help="renderdoc Python 模块路径 (包含 renderdoc.pyd/so)")
-    parser.add_argument("--helper-python", help="RenderDoc helper 使用的 Python 解释器路径")
+    parser.add_argument("--helper-python", help="helper 进程使用的 Python 可执行文件")
     args = parser.parse_args()
+
+    use_mock = args.mock or args.no_mock is False and False
+    # --mock explicitly enables mock; otherwise default is False
+    # --no_mock is kept for backwards compat but is a no-op now
 
     config = Config(
         ollama_base_url=args.ollama_url,
