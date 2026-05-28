@@ -1,9 +1,11 @@
 """CLI entry point for RenderDoc Agent."""
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
+from datetime import datetime
 
 from .config import Config
 from .agent import ReactAgent
@@ -13,7 +15,6 @@ from .tools.shader_analysis import analyze_shaders
 from .tools.gpu_time_analysis import analyze_gpu_time
 from .tools.overdraw_analysis import analyze_overdraw
 from .tools.baselines import compare_with_baseline
-from .report import generate_csv_report, generate_json_report
 
 
 PLATFORM_HELP = (
@@ -44,11 +45,83 @@ def print_help():
     print(PLATFORM_HELP)
 
 
-def quick_report(rdc_file: str, platform: str, config: Config, fmt: str = "text", output: str = None):
-    """Generate a quick report without LLM."""
+def _render_markdown_report(rdc_file: str, platform: str, baseline_result: dict, extracted: dict) -> str:
+    analysis_data = extracted.get("drawcall_data", {})
+    texture_data = extracted.get("texture_data", {})
+    shader_data = extracted.get("shader_data", {})
+    gpu_time_data = extracted.get("gpu_time_data", {})
+    overdraw_data = extracted.get("overdraw_data", {})
+    run_meta = extracted.get("run_meta", {})
+    timings = run_meta.get("timings_ms", {})
+
+    lines = []
+    lines.append("# RenderDoc Analysis Report")
+    lines.append("")
+    lines.append(f"- Generated: {datetime.now().isoformat(timespec='seconds')}")
+    lines.append(f"- File: {rdc_file}")
+    lines.append(f"- Platform: {baseline_result.get('platform', platform)}")
+    lines.append(f"- Status: {baseline_result.get('status', 'unknown')}")
+    lines.append(f"- Mode: {run_meta.get('mode', 'quick')}")
+    lines.append(f"- Cache Hit: {run_meta.get('cache_hit', False)}")
+    lines.append("")
+
+    lines.append("## Timings")
+    lines.append(f"- Total: {timings.get('total_ms', 'N/A')} ms")
+    lines.append(f"- Base: {timings.get('base_ms', 'N/A')} ms")
+    lines.append(f"- GPU: {timings.get('gpu_ms', 'N/A')} ms")
+    lines.append(f"- Overdraw: {timings.get('overdraw_ms', 'N/A')} ms")
+    lines.append("")
+
+    lines.append("## Baseline")
+    for m in baseline_result.get("metrics", []):
+        status = "OVER" if m.get("over_budget") else "OK"
+        lines.append(
+            f"- {m.get('name', '')}: actual={m.get('actual', '')}, threshold={m.get('threshold', '')}, ratio={m.get('ratio', '')}, status={status}"
+        )
+    lines.append("")
+
+    lines.append("## Core Metrics")
+    lines.append(f"- Draw Calls: {analysis_data.get('draw_calls', 0)}")
+    lines.append(f"- Triangles: {analysis_data.get('triangles', 0)}")
+    lines.append(f"- Texture Memory MB: {analysis_data.get('texture_memory_mb', 0)}")
+    lines.append(f"- Shader Variants: {shader_data.get('total_variants', 'N/A')}")
+    lines.append(f"- Frame Time ms: {gpu_time_data.get('frame_time_ms', 'N/A')}")
+    lines.append(f"- FPS Estimate: {gpu_time_data.get('fps_estimate', 'N/A')}")
+    lines.append(f"- Overdraw Ratio: {overdraw_data.get('overdraw_ratio', 'N/A')}")
+    lines.append("")
+
+    lines.append("## Texture")
+    lines.append(f"- Total Textures: {texture_data.get('total_textures', 'N/A')}")
+    lines.append(f"- Total Memory MB: {texture_data.get('total_memory_mb', 'N/A')}")
+    lines.append("")
+
+    lines.append("## GPU")
+    lines.append(f"- Bottleneck: {gpu_time_data.get('bottleneck', 'N/A')}")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def quick_report(rdc_file: str, platform: str, config: Config, mode: str = "quick", output_dir: str = None):
+    """Generate a deterministic quick/half/full report without LLM."""
     helper = Path(__file__).resolve().parent / "renderdoc_helper.py"
     helper_python = config.helper_python or sys.executable
-    cmd = [helper_python, str(helper), rdc_file, "--renderdoc-path", config.renderdoc_module_path]
+    out_dir = Path(output_dir or Path.cwd())
+    out_dir.mkdir(parents=True, exist_ok=True)
+    result_json_path = out_dir / "result.json"
+    report_md_path = out_dir / "report.md"
+
+    cmd = [
+        helper_python,
+        str(helper),
+        rdc_file,
+        "--renderdoc-path",
+        config.renderdoc_module_path,
+        "--mode",
+        mode,
+        "--output",
+        str(result_json_path),
+    ]
 
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if proc.returncode != 0:
@@ -62,14 +135,8 @@ def quick_report(rdc_file: str, platform: str, config: Config, fmt: str = "text"
         else:
             raise RuntimeError(proc.stderr or proc.stdout or "renderdoc helper failed")
     else:
-        extracted = None
-        for line in reversed(proc.stdout.splitlines()):
-            line = line.strip()
-            if line.startswith("{") and line.endswith("}"):
-                extracted = json.loads(line)
-                break
-        if extracted is None:
-            raise RuntimeError(f"renderdoc helper did not return JSON: {proc.stdout}")
+        with open(result_json_path, "r", encoding="utf-8") as f:
+            extracted = json.load(f)
 
         dc = extracted.get("drawcall_data", {})
         analysis_data = {
@@ -110,100 +177,12 @@ def quick_report(rdc_file: str, platform: str, config: Config, fmt: str = "text"
     # Compare with baseline
     baseline_result = compare_with_baseline(baseline_input, platform)
 
-    # Generate report
-    if fmt == "csv":
-        report = generate_csv_report(analysis_data, baseline_result, texture_data, shader_data, gpu_time_data, overdraw_data)
-    elif fmt == "json":
-        report = generate_json_report(analysis_data, baseline_result, texture_data, shader_data, gpu_time_data, overdraw_data)
-    else:
-        # Text format - structured report
-        lines = []
-        lines.append("=" * 60)
-        lines.append("RenderDoc 性能分析报告")
-        lines.append("=" * 60)
-        lines.append(f"文件: {rdc_file}")
-        lines.append(f"平台: {baseline_result.get('platform', platform)}")
-        lines.append(f"状态: {baseline_result.get('status', '未知')}")
-        lines.append("")
+    report = _render_markdown_report(rdc_file, platform, baseline_result, extracted)
+    with open(report_md_path, "w", encoding="utf-8") as f:
+        f.write(report)
 
-        # Baseline metrics
-        lines.append("-" * 60)
-        lines.append(f"{'指标':<18} {'实际值':<12} {'阈值':<12} {'比率':<8} {'状态':<8}")
-        lines.append("-" * 60)
-        for m in baseline_result.get("metrics", []):
-            name = m.get("name", "")
-            actual = m.get("actual", "")
-            threshold = m.get("threshold", "")
-            ratio = m.get("ratio", "")
-            status = "超标" if m.get("over_budget") else "正常"
-            lines.append(f"{name:<18} {actual:<12} {threshold:<12} {ratio:<8} {status:<8}")
-        lines.append("-" * 60)
-        lines.append("")
-
-        # Texture analysis
-        lines.append("纹理分析:")
-        lines.append(f"  纹理总数: {texture_data.get('total_textures', 'N/A')}")
-        lines.append(f"  纹理总内存: {texture_data.get('total_memory_mb', 'N/A')} MB")
-        mipmap = texture_data.get("mipmap_status", {})
-        lines.append(f"  Mipmap: 有 {mipmap.get('has_mipmap', 'N/A')} / 无 {mipmap.get('no_mipmap', 'N/A')}")
-        uncomp = texture_data.get("uncompressed_textures", [])
-        if uncomp:
-            lines.append(f"  未压缩纹理 ({len(uncomp)}):")
-            for tex in uncomp:
-                lines.append(f"    - {tex['name']}: {tex['format']} {tex['size']} ({tex['memory_mb']} MB)")
-        lines.append("")
-
-        # Shader analysis
-        lines.append("Shader 分析:")
-        lines.append(f"  Shader 总数: {shader_data.get('total_shaders', 'N/A')}")
-        lines.append(f"  变体总数: {shader_data.get('total_variants', 'N/A')}")
-        explosion = shader_data.get("variant_explosion", [])
-        if explosion:
-            lines.append("  变体爆炸:")
-            for s in explosion:
-                lines.append(f"    - {s['name']}: {s['variants']} 变体 (关键字: {', '.join(s.get('keywords', []))})")
-        lines.append("")
-
-        # GPU time analysis
-        lines.append("GPU 耗时分析:")
-        lines.append(f"  帧时间: {gpu_time_data.get('frame_time_ms', 'N/A')} ms")
-        lines.append(f"  估算 FPS: {gpu_time_data.get('fps_estimate', 'N/A')}")
-        lines.append(f"  瓶颈 Pass: {gpu_time_data.get('bottleneck', 'N/A')}")
-        lines.append("  Pass 耗时:")
-        for p in gpu_time_data.get("pass_breakdown", []):
-            lines.append(f"    - {p['name']}: {p['time_ms']} ms ({p['percentage']}%)")
-        lines.append("")
-
-        # Overdraw analysis
-        lines.append("Overdraw 分析:")
-        lines.append(f"  Overdraw 比例: {overdraw_data.get('overdraw_ratio', 'N/A')}x")
-        bw = overdraw_data.get("bandwidth", {})
-        lines.append(f"  估算带宽: {bw.get('estimated_bandwidth_gb', 'N/A')} GB/帧")
-        high_regions = overdraw_data.get("high_overdraw_regions", [])
-        if high_regions:
-            lines.append("  高 Overdraw 区域:")
-            for r in high_regions:
-                lines.append(f"    - {r['region']}: {r['overdraw']}x ({r['cause']})")
-        opt = overdraw_data.get("optimization_potential", {})
-        suggestions = opt.get("suggestions", [])
-        if suggestions:
-            lines.append("  优化建议:")
-            for s in suggestions:
-                lines.append(f"    - {s}")
-        lines.append("")
-
-        if analysis_data.get("mock"):
-            lines.append("[注意: 当前使用模拟数据]")
-
-        report = "\n".join(lines)
-
-    # Output
-    if output:
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(report)
-        print(f"报告已保存到: {output}")
-    else:
-        print(report)
+    print(f"结果已保存: {result_json_path}")
+    print(f"报告已保存: {report_md_path}")
 
 
 def main():
@@ -216,11 +195,9 @@ def main():
     parser.add_argument("--ollama-url", default="http://localhost:11434", help="Ollama 服务地址")
     parser.add_argument("--mock", action="store_true", default=False, help="使用模拟数据 (默认关闭)")
     parser.add_argument("--no-mock", action="store_true", help="禁用模拟数据（已默认禁用，保留向后兼容）")
-    parser.add_argument("--format", "-f", choices=["text", "csv", "json"], default="text",
-                        help="输出格式 (默认: text)")
-    parser.add_argument("--output", "-o", help="输出文件路径 (不指定则输出到终端)")
-    parser.add_argument("--quick", "-q", action="store_true",
-                        help="快速报告模式，不使用 LLM 直接输出数据")
+    parser.add_argument("--mode", choices=["quick", "half", "full"], default="quick",
+                        help="分析档位: quick|half|full (默认: quick)")
+    parser.add_argument("--output-dir", "-o", help="输出目录 (默认: 当前目录，固定生成 result.json/report.md)")
     parser.add_argument("--renderdoc-path", help="renderdoc Python 模块路径 (包含 renderdoc.pyd/so)")
     parser.add_argument("--helper-python", help="helper 进程使用的 Python 可执行文件")
     args = parser.parse_args()
@@ -238,9 +215,9 @@ def main():
         helper_python=args.helper_python or "",
     )
 
-    # Quick report mode (no LLM)
-    if args.rdc_file and args.quick:
-        quick_report(args.rdc_file, args.platform, config, args.format, args.output)
+    # Deterministic report mode (no LLM)
+    if args.rdc_file:
+        quick_report(args.rdc_file, args.platform, config, args.mode, args.output_dir)
         return
 
     agent = ReactAgent(config)
@@ -253,12 +230,7 @@ def main():
             print(f"\n正在分析: {args.rdc_file} (平台: {platform})\n")
             result = agent.run(query)
 
-            if args.output:
-                with open(args.output, "w", encoding="utf-8") as f:
-                    f.write(result)
-                print(f"报告已保存到: {args.output}")
-            else:
-                print(result)
+            print(result)
             return
 
         # Interactive mode

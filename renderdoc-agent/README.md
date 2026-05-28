@@ -30,28 +30,29 @@ pip install -e .
 ## 使用
 
 ```bash
-# 交互模式
-python -m renderdoc_agent
+# 直接分析文件（默认 quick）
+python -m renderdoc_agent path/to/frame.rdc --renderdoc-path D:/kd/Tool/ren1.36/Development/pymodules --helper-python D:/py36/python.exe
 
-# 直接分析文件
-python -m renderdoc_agent path/to/frame.rdc
-
-# 指定平台
-python -m renderdoc_agent frame.rdc --platform mobile_mid
-
-# 指定模型
-python -m renderdoc_agent --model qwen2.5:3b
+# 指定分析档位
+python -m renderdoc_agent frame.rdc --mode quick --output-dir ./out
+python -m renderdoc_agent frame.rdc --mode half --output-dir ./out
+python -m renderdoc_agent frame.rdc --mode full --output-dir ./out
 ```
 
-### 交互命令
+固定输出文件:
 
-| 命令 | 说明 |
-|------|------|
-| `<path.rdc>` | 分析 .rdc 文件 |
-| `platform <name>` | 切换目标平台 |
-| `reset` | 清除对话历史 |
-| `help` | 显示帮助 |
-| `quit` | 退出 |
+- `out/result.json`
+- `out/report.md`
+
+`result.json` 包含结构化指标与运行元数据（`run_meta.timings_ms`），用于性能对比与自动化处理。
+
+### 参数说明
+
+- `--mode quick|half|full`：分析档位（默认 `quick`）
+- `--output-dir`：输出目录（固定写入 `result.json` 和 `report.md`）
+- `--platform`：目标平台基线
+- `--renderdoc-path`：`renderdoc.pyd` 所在目录
+- `--helper-python`：用于 helper 的 Python（建议 3.6）
 
 ### 平台基线
 

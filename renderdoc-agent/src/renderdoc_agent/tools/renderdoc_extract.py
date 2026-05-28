@@ -269,7 +269,7 @@ def extract_gpu_time_data(controller):
     }
 
 
-def extract_overdraw_data(controller, sample_count=200):
+def extract_overdraw_data(controller, sample_count=80):
     """Estimate overdraw via pixel history sampling."""
     import renderdoc as rd
     import random
