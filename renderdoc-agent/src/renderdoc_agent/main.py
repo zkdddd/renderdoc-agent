@@ -2,10 +2,13 @@
 
 import json
 import os
+import csv
 import subprocess
 import sys
+import time
 from pathlib import Path
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .config import Config
 from .agent import ReactAgent
@@ -102,6 +105,12 @@ def _render_markdown_report(rdc_file: str, platform: str, baseline_result: dict,
     return "\n".join(lines)
 
 
+def _safe_stem(path: Path) -> str:
+    stem = path.stem.strip()
+    safe = "".join(c if c.isalnum() or c in ("-", "_", ".") else "_" for c in stem)
+    return safe or "capture"
+
+
 def quick_report(rdc_file: str, platform: str, config: Config, mode: str = "quick", output_dir: str = None):
     """Generate a deterministic quick/half/full report without LLM."""
     helper = Path(__file__).resolve().parent / "renderdoc_helper.py"
@@ -184,6 +193,98 @@ def quick_report(rdc_file: str, platform: str, config: Config, mode: str = "quic
     print(f"结果已保存: {result_json_path}")
     print(f"报告已保存: {report_md_path}")
 
+    run_meta = extracted.get("run_meta", {})
+    return {
+        "file_name": Path(rdc_file).name,
+        "mode": mode,
+        "status": baseline_result.get("status", "unknown"),
+        "draw_calls": analysis_data.get("draw_calls"),
+        "triangles": analysis_data.get("triangles"),
+        "texture_memory_mb": analysis_data.get("texture_memory_mb"),
+        "frame_time_ms": gpu_time_data.get("frame_time_ms"),
+        "fps_estimate": gpu_time_data.get("fps_estimate"),
+        "overdraw_ratio": overdraw_data.get("overdraw_ratio"),
+        "total_ms": run_meta.get("timings_ms", {}).get("total_ms"),
+        "cache_hit": run_meta.get("cache_hit"),
+        "error": "",
+    }
+
+
+def _collect_rdc_files(input_dir: str, recursive: bool) -> list[Path]:
+    root = Path(input_dir)
+    pattern = "**/*.rdc" if recursive else "*.rdc"
+    return sorted(root.glob(pattern), key=lambda p: p.name.lower())
+
+
+def _write_summary_csv(rows: list[dict], output_dir: Path) -> Path:
+    summary_path = output_dir / "summary.csv"
+    fields = [
+        "file_name",
+        "mode",
+        "status",
+        "draw_calls",
+        "triangles",
+        "texture_memory_mb",
+        "frame_time_ms",
+        "fps_estimate",
+        "overdraw_ratio",
+        "total_ms",
+        "cache_hit",
+        "error",
+    ]
+    with open(summary_path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({k: row.get(k, "") for k in fields})
+    return summary_path
+
+
+def _batch_analyze(files: list[Path], platform: str, mode: str, config: Config, output_dir: Path, jobs: int) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    total = len(files)
+    start = time.perf_counter()
+    rows = []
+
+    def run_one(index: int, file_path: Path) -> dict:
+        subdir = output_dir / f"{index:03d}_{_safe_stem(file_path)}"
+        try:
+            print(f"[{index}/{total}] analyzing {file_path.name}")
+            return quick_report(str(file_path), platform, config, mode, str(subdir))
+        except Exception as e:
+            return {
+                "file_name": file_path.name,
+                "mode": mode,
+                "status": "ERROR",
+                "draw_calls": "",
+                "triangles": "",
+                "texture_memory_mb": "",
+                "frame_time_ms": "",
+                "fps_estimate": "",
+                "overdraw_ratio": "",
+                "total_ms": "",
+                "cache_hit": "",
+                "error": str(e),
+            }
+
+    indexed_files = list(enumerate(files, start=1))
+    if jobs <= 1:
+        for i, file_path in indexed_files:
+            rows.append(run_one(i, file_path))
+    else:
+        with ThreadPoolExecutor(max_workers=jobs) as executor:
+            future_map = {executor.submit(run_one, i, file_path): i for i, file_path in indexed_files}
+            for future in as_completed(future_map):
+                rows.append(future.result())
+
+    rows.sort(key=lambda r: r.get("file_name", ""))
+    summary_path = _write_summary_csv(rows, output_dir)
+    success = sum(1 for r in rows if not r.get("error"))
+    failed = len(rows) - success
+    elapsed = round(time.perf_counter() - start, 2)
+    print(f"批量完成: success={success}, failed={failed}, total={len(rows)}, elapsed={elapsed}s")
+    print(f"汇总文件: {summary_path}")
+
 
 def main():
     import argparse
@@ -198,9 +299,17 @@ def main():
     parser.add_argument("--mode", choices=["quick", "half", "full"], default="quick",
                         help="分析档位: quick|half|full (默认: quick)")
     parser.add_argument("--output-dir", "-o", help="输出目录 (默认: 当前目录，固定生成 result.json/report.md)")
+    parser.add_argument("--input-dir", help="批量分析目录（与 rdc_file 二选一）")
+    parser.add_argument("--recursive", action="store_true", help="批量模式下递归扫描子目录")
+    parser.add_argument("--jobs", type=int, default=1, help="批量并发数 (默认: 1 串行)")
     parser.add_argument("--renderdoc-path", help="renderdoc Python 模块路径 (包含 renderdoc.pyd/so)")
     parser.add_argument("--helper-python", help="helper 进程使用的 Python 可执行文件")
     args = parser.parse_args()
+
+    if bool(args.rdc_file) == bool(args.input_dir):
+        parser.error("rdc_file 与 --input-dir 必须二选一")
+    if args.jobs < 1:
+        parser.error("--jobs 必须 >= 1")
 
     use_mock = args.mock or args.no_mock is False and False
     # --mock explicitly enables mock; otherwise default is False
@@ -215,7 +324,15 @@ def main():
         helper_python=args.helper_python or "",
     )
 
-    # Deterministic report mode (no LLM)
+    if args.input_dir:
+        files = _collect_rdc_files(args.input_dir, args.recursive)
+        if not files:
+            raise SystemExit(f"未找到 .rdc 文件: {args.input_dir}")
+        batch_output_dir = Path(args.output_dir or Path.cwd())
+        _batch_analyze(files, args.platform, args.mode, config, batch_output_dir, args.jobs)
+        return
+
+    # Deterministic single-file report mode (no LLM)
     if args.rdc_file:
         quick_report(args.rdc_file, args.platform, config, args.mode, args.output_dir)
         return

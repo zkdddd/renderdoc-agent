@@ -37,6 +37,12 @@ python -m renderdoc_agent path/to/frame.rdc --renderdoc-path D:/kd/Tool/ren1.36/
 python -m renderdoc_agent frame.rdc --mode quick --output-dir ./out
 python -m renderdoc_agent frame.rdc --mode half --output-dir ./out
 python -m renderdoc_agent frame.rdc --mode full --output-dir ./out
+
+# 批量分析（默认串行）
+python -m renderdoc_agent --input-dir D:/rdc_samples --mode quick --output-dir ./batch_out
+
+# 批量分析（递归 + 并发 2）
+python -m renderdoc_agent --input-dir D:/rdc_samples --recursive --jobs 2 --mode half --output-dir ./batch_out
 ```
 
 固定输出文件:
@@ -44,12 +50,21 @@ python -m renderdoc_agent frame.rdc --mode full --output-dir ./out
 - `out/result.json`
 - `out/report.md`
 
+批量模式会额外生成:
+
+- `<output-dir>/summary.csv`
+- `<output-dir>/<序号>_<文件名>/result.json`
+- `<output-dir>/<序号>_<文件名>/report.md`
+
 `result.json` 包含结构化指标与运行元数据（`run_meta.timings_ms`），用于性能对比与自动化处理。
 
 ### 参数说明
 
 - `--mode quick|half|full`：分析档位（默认 `quick`）
 - `--output-dir`：输出目录（固定写入 `result.json` 和 `report.md`）
+- `--input-dir`：批量分析目录（与单文件路径二选一）
+- `--recursive`：批量模式递归扫描子目录
+- `--jobs`：批量并发数（默认 `1`，推荐先串行）
 - `--platform`：目标平台基线
 - `--renderdoc-path`：`renderdoc.pyd` 所在目录
 - `--helper-python`：用于 helper 的 Python（建议 3.6）
