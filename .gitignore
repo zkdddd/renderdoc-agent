@@ -11,3 +11,13 @@ venv/
 env/
 .env
 .claude/
+.pytest_cache/
+
+# Generated analysis outputs
+batch_out/
+out/
+out_half/
+rdc526_batch_quick/
+report.csv
+report.json
+result.txt

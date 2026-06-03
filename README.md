@@ -12,7 +12,6 @@
 ## 安装
 
 ```bash
-cd renderdoc-agent
 pip install -e .
 ```
 
